@@ -1,0 +1,98 @@
+---
+
+  - name: Remove master public DNS record
+    route53:
+      command: delete
+      record: "master.{{ dns_zone }}"
+      zone: "{{ dns_zone }}"
+      type: A
+      value: "{{ master_node.public_ip }}"
+      wait: yes
+      ttl: "{{ ttl }}"
+
+  - name: Remove worker instances DNS
+    route53:
+      command: delete
+      record: "{{ item.invocation.module_args.instance_tags.Host }}"
+      zone: "{{ dns_zone }}"
+      type: A
+      value: "{{ item.tagged_instances[0].private_ip }}"
+      wait: yes
+      ttl: "{{ ttl }}"
+    with_items: "{{ private_instances.results }}"
+
+  #- name: Remove DNS zone
+    #route53_zone:
+      #zone: "{{ dns_zone }}"
+      #region: "{{ region }}"
+      #state: absent
+
+  - name: facts
+    ec2_vpc_net_facts:
+      region: "{{ region }}"
+    register: facts
+
+  - name: remove nat eip
+    ec2_eip:
+      release_on_disassociation: true
+      region: "{{ region }}"
+      device_id: "{{ nat_gw.nat_gateway_addresses[0].network_interface_id }}"
+
+  - name: remove instance eip
+    ec2_eip:
+      state: absent
+      release_on_disassociation: true
+      region: "{{ region }}"
+      device_id: "{{ public_instances.tagged_instances[0].id }}"
+
+  - name: Stop public instances
+    ec2:
+      region: "{{ region }}"
+      image: "{{ image_name }}"
+      wait: yes
+      exact_count: 0
+      count_tag:
+        Scope: public
+
+  - name: Stop private instances
+    ec2:
+      region: "{{ region }}"
+      image: "{{ image_name }}"
+      wait: yes
+      exact_count: 0
+      count_tag:
+        Scope: private
+
+  - name: remove nat gw
+    ec2_vpc_nat_gateway:
+      region: "{{ region }}"
+      wait: true
+      state: absent
+      release_eip: true
+      nat_gateway_id: "{{ nat_gw.nat_gateway_id }}"
+
+  - name: rm igw
+    ec2_vpc_igw:
+      region: "{{ region }}"
+      vpc_id: "{{ facts.vpcs[0].id }}"
+      state: absent
+
+  - name: route table facts
+    ec2_vpc_route_table_facts:
+      region: "{{ region }}"
+    register: route_table_facts
+
+  - name: remove route tables
+    ec2_vpc_route_table:
+      region: "{{ region }}"
+      state: absent
+      route_table_id: item.route_table_id
+      vpc_id: item.vpc_id
+    with_items: route_table_facts
+
+  - name: VPC
+    ec2_vpc:
+      state: absent
+      cidr_block: 10.0.0.0/16
+      resource_tags: { "Name": "{{ project_name }}_vpc", "Environment":"Production" }
+      region: "{{ region }}"

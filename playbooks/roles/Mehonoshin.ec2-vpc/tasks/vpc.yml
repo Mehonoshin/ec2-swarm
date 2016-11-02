@@ -1,0 +1,155 @@
+---
+
+  - name: VPC
+    ec2_vpc:
+      state: present
+      cidr_block: 10.0.0.0/16
+      resource_tags: { "Name": "{{ project_name }}_vpc", "Environment":"Production" }
+      region: "{{ region }}"
+      internet_gateway: yes
+    register: vpc
+
+  - name: VPC public subnet
+    ec2_vpc_subnet:
+      region: "{{ region }}"
+      state: present
+      vpc_id: "{{ vpc.vpc_id }}"
+      cidr: 10.0.1.0/24
+      resource_tags:
+        Name: Public
+    register: public_network
+
+  - name: VPC private subnet
+    ec2_vpc_subnet:
+      region: "{{ region }}"
+      state: present
+      vpc_id: "{{ vpc.vpc_id }}"
+      cidr: 10.0.2.0/24
+      resource_tags:
+        Name: Private
+    register: private_network
+
+  - name: VPC internet gateway
+    ec2_vpc_igw:
+      vpc_id: "{{ vpc.vpc_id }}"
+      region: "{{ region }}"
+      state: present
+    register: igw
+
+  - name: VPC nat gw
+    ec2_vpc_nat_gateway:
+      region: "{{ region }}"
+      wait: yes
+      if_exist_do_not_create: true
+      state: present
+      subnet_id: "{{ public_network.subnet.id }}"
+    register: nat_gw
+
+  - name: Public VMs security group
+    ec2_group:
+      name: public
+      description: public internet machines
+      region: "{{ region }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp
+          from_port: 2377
+          to_port: 2377
+          cidr_ip: 10.0.0.0/16
+    register: public_group
+
+  - name: Private VMs security group
+    ec2_group:
+      name: private
+      description: private internet machines
+      region: "{{ region }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp
+          from_port: 2377
+          to_port: 2377
+          cidr_ip: 0.0.0.0/0
+    register: private_group
+
+  - name: Public route table
+    ec2_vpc_route_table:
+      vpc_id: "{{ vpc.vpc_id }}"
+      region: "{{ region }}"
+      tags:
+        Name: Default
+      subnets:
+        - "{{ public_network.subnet.id }}"
+      routes:
+        - dest: 0.0.0.0/0
+          gateway_id: "{{ igw.gateway_id }}"
+        - dest: 10.0.0.0/16
+          gateway_id: local
+
+  - name: Private route table
+    ec2_vpc_route_table:
+      vpc_id: "{{ vpc.vpc_id }}"
+      region: "{{ region }}"
+      tags:
+        Name: Private
+      subnets:
+        - "{{ private_network.subnet.id }}"
+      routes:
+        - dest: 0.0.0.0/0
+          gateway_id: "{{ nat_gw.nat_gateway_id }}"
+        - dest: 10.0.0.0/16
+          gateway_id: local
+
+  - name: Setup public instances
+    ec2:
+      key_name: "{{ key_name }}"
+      region: "{{ region }}"
+      group_id: "{{ public_group.group_id }}"
+      instance_type: t2.micro
+      image: "{{ image_name }}"
+      exact_count: "{{ number_masters }}"
+      wait: true
+      count_tag:
+        Host: "master.{{ dns_zone }}"
+      instance_tags:
+        Name: "master.{{ dns_zone }}"
+        Host: "master.{{ dns_zone }}"
+        Scope: public
+        Role: master
+      vpc_subnet_id: "{{ public_network.subnet.id }}"
+    register: public_instances
+
+  - name: allocate a new elastic IP and associate it with an instance
+    ec2_eip:
+      release_on_disassociation: true
+      reuse_existing_ip_allowed: true
+      region: "{{ region }}"
+      device_id: "{{ public_instances.tagged_instances[0].id }}"
+      in_vpc: true
+    register: master_node
+
+  - name: Setup private instances
+    ec2:
+      key_name: "{{ key_name }}"
+      region: "{{ region }}"
+      group_id: "{{ private_group.group_id }}"
+      instance_type: t2.micro
+      image: "{{ image_name }}"
+      exact_count: 1
+      count_tag:
+        Host: "worker{{ item }}.{{ dns_zone }}"
+      instance_tags:
+        Name: "worker{{ item }}.{{ dns_zone }}"
+        Host: "worker{{ item }}.{{ dns_zone }}"
+        Scope: private
+        Role: worker
+      vpc_subnet_id: "{{ private_network.subnet.id }}"
+    with_sequence: count={{ number_workers }}
+    register: private_instances

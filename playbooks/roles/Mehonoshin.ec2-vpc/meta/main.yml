@@ -1,0 +1,22 @@
+---
+
+galaxy_info:
+  author: Stanislav Mekhonoshin
+  description: Setup an AWS VPC network for Docker Swarm cluster
+  company: ""
+  license: MIT
+  min_ansible_version: 2.2
+  platforms:
+    - name: Ubuntu
+      versions:
+        - xenial
+  galaxy_tags:
+    - ec2
+    - vpc
+    - route53
+    - docker
+    - swarm
+    - docker-swarm
+    - docker-cluster
+
+dependencies: []

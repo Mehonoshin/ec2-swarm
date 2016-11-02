@@ -1,0 +1,18 @@
+---
+  - name: install packages
+    apt: name={{ item }} update_cache=yes state=latest
+    with_items:
+      - mc
+      - ncdu
+      - htop
+      - postgresql-client
+    become: true
+
+  # Create directory to hold all application data
+  - file: path={{ data_mountpoint }} state=directory mode=0777
+    become: true
+
+  - name: generate ssh key
+    user:
+      name: "{{ username }}"
+      generate_ssh_key: yes

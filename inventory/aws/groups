@@ -1,0 +1,13 @@
+[tag_Role_master]
+
+[tag_Role_worker]
+
+[docker_swarm_manager:children]
+tag_Role_master
+
+[docker_swarm_worker:children]
+tag_Role_worker
+
+[swarm_node:children]
+tag_Role_master
+tag_Role_worker

@@ -1,0 +1,6 @@
+---
+
+  - include: vpc.yml
+  - include: dns.yml
+  - include: cleanup.yml
+    when: cleanup_cloud

@@ -1,0 +1,10 @@
+---
+- hosts: swarm_node
+
+  roles:
+    - common
+    - { role: kamaln7.swapfile,     become: true }
+    - { role: tschifftner.datetime, become: true }
+    - { role: franklinkim.docker,   become: true }
+    - { role: franklinkim.docker-compose, become: true }
+    - { role: atosatto.docker-swarm,      become: true }

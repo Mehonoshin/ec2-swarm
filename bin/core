@@ -1,0 +1,2 @@
+docker build -t ansible-runner .
+docker run -t -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -v /root/.ansible -v /root/.ssh -v $(pwd):/ansible -v $(pwd)/ssh.cfg:/ansible/ssh.cfg -v ~/.ssh/aws.pem:/root/.ssh/aws.pem -v $(pwd)/ssh.cfg:/root/.ssh/config ansible-runner:latest playbooks/core.yml

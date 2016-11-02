@@ -1,0 +1,6 @@
+# from galaxy
+- src: kamaln7.swapfile
+- src: atosatto.docker-swarm
+- src: franklinkim.docker
+- src: tschifftner.datetime
+- src: Mehonoshin.ec2-vpc

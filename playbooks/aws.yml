@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+
+  vars:
+    region: eu-west-1
+    project_name: collector
+    key_name: devenv-key
+    image_name: ami-ed82e39e # ubuntu
+    cleanup_cloud: true
+    dns_zone: c.cspub.net
+    ttl: 60
+    number_masters: 1
+    number_workers: 2
+
+  roles:
+    - Mehonoshin.ec2-vpc

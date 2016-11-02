@@ -1,0 +1,27 @@
+---
+- name: Ensure tzdata is installed
+  apt:
+    pkg: tzdata
+    state: present
+
+- name: Output defined timezone compared to local timezone
+  debug: msg="{{ansible_date_time.tz}} != {{datetime_timezone}}"
+
+- name: Set timezone variables
+  notify: update timezone
+  copy:
+    content: "{{ datetime_timezone }}\n"
+    dest: /etc/timezone
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when: ansible_date_time.tz != datetime_timezone
+
+- name: Set localtime
+  file:
+    src: '/usr/share/zoneinfo/{{ datetime_timezone }}'
+    dest: '/etc/localtime'
+    owner: root
+    group: root
+    mode: '0644'

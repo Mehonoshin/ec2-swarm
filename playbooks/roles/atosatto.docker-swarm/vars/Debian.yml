@@ -1,0 +1,7 @@
+---
+
+default_docker_dependencies:
+  - linux-image-extra-virtual
+
+python_pip_packages:
+  - python-pip

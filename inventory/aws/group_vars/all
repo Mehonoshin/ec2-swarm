@@ -1,0 +1,3 @@
+---
+data_mountpoint: /collector_data
+username: ubuntu

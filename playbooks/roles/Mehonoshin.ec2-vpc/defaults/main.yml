@@ -1,0 +1,12 @@
+---
+  region: eu-west-1
+  project_name: my_app
+  key_name: key_name
+  image_name: ami-ed82e39e # ubuntu
+  cleanup_cloud: true
+  dns_zone: example.com
+  ttl: 60
+  number_masters: 1
+  number_workers: 2
+
+

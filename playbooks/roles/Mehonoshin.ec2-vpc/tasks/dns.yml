@@ -1,0 +1,42 @@
+---
+
+  - name: DNS zone
+    route53_zone:
+      zone: "{{ dns_zone }}"
+      region: "{{ region }}"
+      state: present
+
+  - name: ns servers
+    route53:
+      command: get
+      zone: "{{ dns_zone }}"
+      record: "{{ dns_zone }}"
+      type: NS
+    register: ns_servers
+
+  - name: Master public DNS record
+    route53:
+      command: create
+      overwrite: true
+      record: "master.{{ dns_zone }}"
+      zone: "{{ dns_zone }}"
+      type: A
+      value: "{{ master_node.public_ip }}"
+      wait: yes
+      ttl: "{{ ttl }}"
+
+  - name: Worker instances DNS
+    route53:
+      command: create
+      overwrite: true
+      record: "{{ item.invocation.module_args.instance_tags.Host }}"
+      zone: "{{ dns_zone }}"
+      type: A
+      value: "{{ item.tagged_instances[0].private_ip }}"
+      wait: yes
+      ttl: "{{ ttl }}"
+    with_items: "{{ private_instances.results }}"
+
+  - debug:
+      msg: "IMPORTANT!!! Delegate your domain to these AWS nameservers: {{ ns_servers.nameservers }}"
+
